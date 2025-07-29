@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'AI File Processor - Process files in S3 using Claude Bedrock'
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Description: 'Prefix for the stack resources'
+
+Globals:
+  Function:
+    Timeout: 900  # 15 minutes (maximum for Lambda)
+    Runtime: python3.11
+    MemorySize: 1024
+    Environment:
+      Variables:
+        STACK_PREFIX: !Ref StackPrefix
+
+Resources:
+  TriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ai-processor-trigger
+      CodeUri: src/trigger/
+      Handler: handler.lambda_handler
+      Description: Triggered when prompt.json is uploaded
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Sub '${StackPrefix}-ai-file-processor-input'
+  TriggerFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TriggerFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:aws:s3:::${StackPrefix}-ai-file-processor-input'
+    DependsOn: TriggerFunctionPermission  # Ensure permission exists first
+  InputBucket: 
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${StackPrefix}-ai-file-processor-input'
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt TriggerFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: prompt.json
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+        
+
