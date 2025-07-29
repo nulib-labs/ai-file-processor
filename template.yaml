@@ -34,7 +34,6 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
       SourceArn: !Sub 'arn:aws:s3:::${StackPrefix}-ai-file-processor-input'
-    DependsOn: TriggerFunctionPermission  # Ensure permission exists first
   InputBucket: 
     Type: AWS::S3::Bucket
     Properties:
@@ -53,5 +52,7 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+    DependsOn: TriggerFunctionPermission  
+
         
 
