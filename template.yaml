@@ -20,7 +20,7 @@ Resources:
   TriggerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: ai-processor-trigger
+      FunctionName: !Sub '${StackPrefix}-ai-processor-trigger'
       CodeUri: src/trigger/
       Handler: handler.lambda_handler
       Description: Triggered when prompt.json is uploaded
