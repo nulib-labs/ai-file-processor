@@ -6,6 +6,12 @@ Parameters:
   StackPrefix:
     Type: String
     Description: 'Prefix for the stack resources'
+  ModelId:
+    Type: String
+    Description: 'The Bedrock model ID to use for processing files'
+  BedrockRoleArn:
+    Type: String
+    Description: 'ARN of the IAM role for Bedrock batch processing'
 
 Globals:
   Function:
@@ -24,9 +30,39 @@ Resources:
       CodeUri: src/trigger/
       Handler: handler.lambda_handler
       Description: Triggered when prompt.json is uploaded
+      Environment:
+        Variables:
+          OUTPUT_BUCKET: !Ref OutputBucket
+          MODEL_ID: !Ref ModelId
+          BEDROCK_ROLE_ARN: !GetAtt BedrockBatchRole.Arn
       Policies:
         - S3ReadPolicy:
             BucketName: !Sub '${StackPrefix}-ai-file-processor-input'
+        - S3WritePolicy:
+            BucketName: !Ref OutputBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:ListFoundationModels
+              - bedrock:GetFoundationModel
+              - bedrock:ListInferenceProfiles
+              - bedrock:GetInferenceProfile
+              - bedrock:ListCustomModels
+              - bedrock:GetCustomModel
+              - bedrock:TagResource 
+              - bedrock:UntagResource 
+              - bedrock:ListTagsForResource
+              - bedrock:GetModelInvocationJob
+              - bedrock:ListModelInvocationJobs  
+              - bedrock:StopModelInvocationJob
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - bedrock:CreateModelInvocationJob
+            Resource: 
+              - !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:foundation-model/${ModelId}'
+              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:model-invocation-job/*"
+              
   TriggerFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -53,6 +89,45 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
     DependsOn: TriggerFunctionPermission  
+  OutputBucket: 
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${StackPrefix}-ai-file-processor-output'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  BedrockBatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${StackPrefix}-bedrock-batch-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BedrockBatchS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "${InputBucket}/*"
+                  - !Sub "${OutputBucket}/*"
+                  - !Ref InputBucket
+                  - !Ref OutputBucket
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: "*"
 
         
 
