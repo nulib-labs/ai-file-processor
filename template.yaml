@@ -9,9 +9,6 @@ Parameters:
   ModelId:
     Type: String
     Description: 'The Bedrock model ID to use for processing files'
-  BedrockRoleArn:
-    Type: String
-    Description: 'ARN of the IAM role for Bedrock batch processing'
 
 Globals:
   Function:
@@ -60,8 +57,13 @@ Resources:
             Action:
               - bedrock:CreateModelInvocationJob
             Resource: 
-              - !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:foundation-model/${ModelId}'
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/${ModelId}'
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::inference-profile/${ModelId}'
               - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:model-invocation-job/*"
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !GetAtt BedrockBatchRole.Arn
               
   TriggerFunctionPermission:
     Type: AWS::Lambda::Permission
@@ -120,10 +122,10 @@ Resources:
                   - s3:PutObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub "${InputBucket}/*"
-                  - !Sub "${OutputBucket}/*"
-                  - !Ref InputBucket
-                  - !Ref OutputBucket
+                  - !Sub "arn:aws:s3:::${StackPrefix}-ai-file-processor-input/*"
+                  - !Sub "arn:aws:s3:::${StackPrefix}-ai-file-processor-output/*"
+                  - !Sub "arn:aws:s3:::${StackPrefix}-ai-file-processor-input"
+                  - !Sub "arn:aws:s3:::${StackPrefix}-ai-file-processor-output"
               - Effect: Allow
                 Action:
                   - bedrock:InvokeModel

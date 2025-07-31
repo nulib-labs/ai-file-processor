@@ -247,3 +247,4 @@ $RECYCLE.BIN/
 samconfig.*.toml
 
 .aws-sam/*
+CLAUDE.md

@@ -10,7 +10,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3_client = boto3.client("s3")
-bedrock_client = boto3.client("bedrock-runtime")
+bedrock_client = boto3.client("bedrock", region_name='us-east-1')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET') 
 BEDROCK_ROLE_ARN = os.environ.get('BEDROCK_ROLE_ARN')
 MODEL_ID = os.environ.get('MODEL_ID')
@@ -18,6 +18,17 @@ SUPPORTED_EXTENSIONS = ['.png', '.jpg', '.jpeg']
 
 def lambda_handler(event, context):
     logger.info("Received event: %s" % json.dumps(event, indent=2))
+    
+    # Validate required environment variables
+    if not OUTPUT_BUCKET:
+        logger.error("OUTPUT_BUCKET environment variable not set")
+        return {"statusCode": 500, "body": "Configuration error"}
+    if not BEDROCK_ROLE_ARN:
+        logger.error("BEDROCK_ROLE_ARN environment variable not set") 
+        return {"statusCode": 500, "body": "Configuration error"}
+    if not MODEL_ID:
+        logger.error("MODEL_ID environment variable not set")
+        return {"statusCode": 500, "body": "Configuration error"}
 
     for record in event["Records"]:
         bucket = record["s3"]["bucket"]["name"]
@@ -44,9 +55,9 @@ def lambda_handler(event, context):
             files = list_files_in_directory(bucket, directory_path)
             logger.info(f"Found {len(files)} processable files")
 
-            # Bedrock has 100 file minimum batch size
+            # Bedrock batch has 100 file minimum requirement
             if len(files) < 100:
-                logger.warning(f"Only {len(files)} files found. Bedrock batch requires 100 records.")
+                logger.error(f"Only {len(files)} files found. Bedrock batch requires minimum 100 records. Cannot proceed with batch job.")
                 continue
 
             jsonl_content = create_batch_jsonl(files, prompt_config, bucket)
@@ -69,12 +80,12 @@ def lambda_handler(event, context):
 
             batch_response = bedrock_client.create_model_invocation_job(
                 roleArn=BEDROCK_ROLE_ARN,
-                ModelId=MODEL_ID,
+                modelId=MODEL_ID,
                 jobName=job_name,
                 inputDataConfig={
                     's3InputDataConfig': {
-                        's3Uri': f's3://{OUTPUT_BUCKET}/{batch_input_key}',
-                        'contentType': 'application/x-jsonlines'
+                        's3InputFormat': 'JSONL',
+                        's3Uri': f's3://{OUTPUT_BUCKET}/{batch_input_key}'
                     }
                 },
                 outputDataConfig={
@@ -146,17 +157,15 @@ def create_batch_input_record(file_info, prompt_config, bucket):
     record_id = f"{file_info['key'].replace('/','-').replace('.','-')}"
 
     content = [
-        {"text": prompt_config['prompt']}
+        {"type": "text", "text": prompt_config['prompt']}
     ]
 
     if file_info['content_type'] == 'image':
         content.append({
-            "image": {
-                "format": file_info['format'],
-                "source": {
-                    "s3Location": {
-                        "uri": f"s3://{bucket}/{file_info['key']}"
-                    }
+            "type": "image", 
+            "source": {
+                "s3Location": {
+                    "uri": f"s3://{bucket}/{file_info['key']}"
                 }
             }
         })
@@ -166,7 +175,12 @@ def create_batch_input_record(file_info, prompt_config, bucket):
         "modelInput": {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 1024,
-            "messages": content
+            "messages": [
+                {
+                    "role": "user",
+                    "content": content
+                }
+            ]
         }
     }
 
