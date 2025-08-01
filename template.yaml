@@ -89,6 +89,8 @@ Resources:
             FunctionName: !Ref WorkerFunction
         - S3ReadPolicy:
             BucketName: !Ref OutputBucket
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !Sub '${StackPrefix}-ai-file-processing'
   WorkerFunction:
     Type: AWS::Serverless::Function
     Properties:

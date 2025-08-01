@@ -1,31 +1,14 @@
 {
-  "Comment": "AI File Processor - Process files in parallel using Bedrock",
-  "StartAt": "ReadBatchFile",
+  "Comment": "AI File Processor - Process files in parallel using Bedrock with Distributed Map",
+  "StartAt": "ProcessFiles",
   "States": {
-    "ReadBatchFile": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::aws-sdk:s3:getObject",
-      "Parameters": {
-        "Bucket.$": "$.output_bucket",
-        "Key.$": "$.batch_file_key"
-      },
-      "ResultSelector": {
-        "records.$": "States.StringToJson($.Body)",
-        "output_bucket.$": "$$.Execution.Input.output_bucket",
-        "directory_path.$": "$$.Execution.Input.directory_path"
-      },
-      "Next": "ProcessFiles"
-    },
     "ProcessFiles": {
       "Type": "Map",
-      "ItemsPath": "$.records",
-      "MaxConcurrency": 50,
-      "Parameters": {
-        "record.$": "$",
-        "output_bucket.$": "$.output_bucket",
-        "directory_path.$": "$.directory_path"
-      },
-      "Iterator": {
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
         "StartAt": "ProcessSingleFile",
         "States": {
           "ProcessSingleFile": {
@@ -33,20 +16,43 @@
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
               "FunctionName": "${WorkerFunctionArn}",
-              "Payload.$": "$"
+              "Payload": {
+                "record.$": "$.item",
+                "output_bucket.$": "$.outputBucket",
+                "directory_path.$": "$.directoryPath"
+              }
             },
-            "End": true,
             "Retry": [
               {
-                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+                "ErrorEquals": [
+                  "Lambda.ServiceException", 
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
                 "IntervalSeconds": 2,
                 "MaxAttempts": 3,
-                "BackoffRate": 2.0
+                "BackoffRate": 2.0,
+                "JitterStrategy": "FULL"
               }
-            ]
+            ],
+            "End": true
           }
         }
       },
+      "ItemReader": {
+        "Resource": "arn:aws:states:::s3:getObject",
+        "ReaderConfig": {
+          "InputType": "JSON"
+        },
+        "Parameters": {
+          "Bucket.$": "$.output_bucket",
+          "Key.$": "$.batch_file_key"
+        }
+      },
+      "Parameters": {"outputBucket.$": "$.output_bucket", "directoryPath.$": "$.directory_path", "item.$": "$$.Map.Item.Value"},
+      "MaxConcurrency": 50,
+      "Label": "ProcessFiles",
       "End": true
     }
   }
