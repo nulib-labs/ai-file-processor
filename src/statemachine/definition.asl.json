@@ -1,0 +1,53 @@
+{
+  "Comment": "AI File Processor - Process files in parallel using Bedrock",
+  "StartAt": "ReadBatchFile",
+  "States": {
+    "ReadBatchFile": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:getObject",
+      "Parameters": {
+        "Bucket.$": "$.output_bucket",
+        "Key.$": "$.batch_file_key"
+      },
+      "ResultSelector": {
+        "records.$": "States.StringToJson($.Body)",
+        "output_bucket.$": "$$.Execution.Input.output_bucket",
+        "directory_path.$": "$$.Execution.Input.directory_path"
+      },
+      "Next": "ProcessFiles"
+    },
+    "ProcessFiles": {
+      "Type": "Map",
+      "ItemsPath": "$.records",
+      "MaxConcurrency": 50,
+      "Parameters": {
+        "record.$": "$",
+        "output_bucket.$": "$.output_bucket",
+        "directory_path.$": "$.directory_path"
+      },
+      "Iterator": {
+        "StartAt": "ProcessSingleFile",
+        "States": {
+          "ProcessSingleFile": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${WorkerFunctionArn}",
+              "Payload.$": "$"
+            },
+            "End": true,
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ]
+          }
+        }
+      },
+      "End": true
+    }
+  }
+}

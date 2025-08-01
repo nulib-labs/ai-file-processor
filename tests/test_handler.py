@@ -4,9 +4,13 @@ from unittest.mock import patch, MagicMock
 import sys
 import os
 
+# Set environment variables before importing handler
+os.environ['OUTPUT_BUCKET'] = "output-bucket-test" 
+os.environ['BEDROCK_ROLE_ARN'] = 'arn:1234567'
+os.environ['MODEL_ID'] = 'model_id'
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'trigger'))
 from handler import lambda_handler
-
 
 class TestLambdaHandler:
     

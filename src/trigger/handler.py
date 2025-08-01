@@ -10,24 +10,22 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3_client = boto3.client("s3")
-bedrock_client = boto3.client("bedrock", region_name='us-east-1')
-OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET') 
-BEDROCK_ROLE_ARN = os.environ.get('BEDROCK_ROLE_ARN')
-MODEL_ID = os.environ.get('MODEL_ID')
-SUPPORTED_EXTENSIONS = ['.png', '.jpg', '.jpeg']
+bedrock_client = boto3.client("bedrock", region_name="us-east-1")
+stepfunctions_client = boto3.client("stepfunctions", region_name="us-east-1")
+OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET")
+STATE_MACHINE_ARN = os.environ.get("STATE_MACHINE_ARN")
+SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg"]
+
 
 def lambda_handler(event, context):
     logger.info("Received event: %s" % json.dumps(event, indent=2))
-    
+
     # Validate required environment variables
     if not OUTPUT_BUCKET:
         logger.error("OUTPUT_BUCKET environment variable not set")
         return {"statusCode": 500, "body": "Configuration error"}
-    if not BEDROCK_ROLE_ARN:
-        logger.error("BEDROCK_ROLE_ARN environment variable not set") 
-        return {"statusCode": 500, "body": "Configuration error"}
-    if not MODEL_ID:
-        logger.error("MODEL_ID environment variable not set")
+    if not STATE_MACHINE_ARN:
+        logger.error("STATE_MACHINE_ARN environment variable not set")
         return {"statusCode": 500, "body": "Configuration error"}
 
     for record in event["Records"]:
@@ -45,59 +43,51 @@ def lambda_handler(event, context):
 
             if "prompt" not in prompt_config:
                 raise ValueError("Missing required field: 'prompt'")
-            
+
             ## TODO validate one level directory only
-            
-            directory_path = '/'.join(key.split('/')[:-1])
+
+            directory_path = "/".join(key.split("/")[:-1])
             if directory_path:
-                directory_path += '/'
+                directory_path += "/"
 
             files = list_files_in_directory(bucket, directory_path)
             logger.info(f"Found {len(files)} processable files")
 
-            # Bedrock batch has 100 file minimum requirement
-            if len(files) < 100:
-                logger.error(f"Only {len(files)} files found. Bedrock batch requires minimum 100 records. Cannot proceed with batch job.")
+            if not files:
+                logger.info("No processable files found in directory.")
+                # TODO create status file
                 continue
 
-            jsonl_content = create_batch_jsonl(files, prompt_config, bucket)
+            batch_records = create_batch_records(files, prompt_config, bucket)
+            batch_file_key = f"{directory_path}_batch_input.json"
 
-            if not jsonl_content:
-                logger.error("Failed to create batch input data")
-                continue
-                
-            batch_input_key = f"{directory_path}batch_input.jsonl"
             s3_client.put_object(
                 Bucket=OUTPUT_BUCKET,
-                Key=batch_input_key,
-                Body=jsonl_content,
-                ContentType='application/x-jsonlines'
+                Key=batch_file_key,
+                Body=json.dumps(batch_records),
+                ContentType='application/json'
             )
 
-            logger.info(f"Batch input file created: {batch_input_key}")
+            logger.info(f"Created batch input file: s3://{OUTPUT_BUCKET}/{batch_file_key}")
 
-            job_name = f"ai-processor-{directory_path.replace('/', '-')}-{int(datetime.now().timestamp())}"
+            execution_name = f"ai-processor-{directory_path.replace('/', '-')}-{int(datetime.now().timestamp())}"
 
-            batch_response = bedrock_client.create_model_invocation_job(
-                roleArn=BEDROCK_ROLE_ARN,
-                modelId=MODEL_ID,
-                jobName=job_name,
-                inputDataConfig={
-                    's3InputDataConfig': {
-                        's3InputFormat': 'JSONL',
-                        's3Uri': f's3://{OUTPUT_BUCKET}/{batch_input_key}'
-                    }
-                },
-                outputDataConfig={
-                    's3OutputDataConfig': {
-                        's3Uri': f's3://{OUTPUT_BUCKET}/{directory_path}batch_output/'
-                    }
-                },
+            step_functions_input = {
+                "batch_file_key": batch_file_key,
+                "directory_path": directory_path,
+                "output_bucket": OUTPUT_BUCKET,
+            }
+
+            response = stepfunctions_client.start_execution(
+                stateMachineArn=STATE_MACHINE_ARN,
+                name=execution_name,
+                input=json.dumps(step_functions_input)
             )
 
-            job_arn = batch_response['jobArn']
-            logger.info(f"Batch job created: {job_arn}")
+            execution_arn = response['executionArn']
+            logger.info(f"Started Step Functions execution: {execution_arn}")
 
+            ## TODO create status file
 
         except Exception as e:
             print(f"Error reading object: {key}: {e}")
@@ -109,84 +99,84 @@ def list_files_in_directory(bucket, directory_path):
     files = []
 
     try:
-        response = s3_client.list_objects_v2(
-            Bucket=bucket,
-            Prefix=directory_path
-        )
-        if 'Contents' not in response:
+        response = s3_client.list_objects_v2(Bucket=bucket, Prefix=directory_path)
+        if "Contents" not in response:
             logger.info("No files in directory")
 
-        for obj in response['Contents']:
-            key = obj['Key']
+        for obj in response["Contents"]:
+            key = obj["Key"]
 
-            if (key.endswith('prompt.json') or 
-                key.endswith('.json') or 
-                key.endswith('/')):
+            if (
+                key.endswith("prompt.json")
+                or key.endswith(".json")
+                or key.endswith("/")
+            ):
                 continue
-        
-            # TODO check if right file/mime type & get format/content type
+
+            _, ext = os.path.splitext(key)
+            if ext.lower() not in SUPPORTED_EXTENSIONS:
+                logger.warning(f"Unsupported file format for {key}, skipping.")
+                continue
 
             format, content_type = get_file_format_and_content_type(key)
 
-            files.append({
-                'key': key,
-                'format': format,
-                'content_type': content_type,
-                'size': obj['Size']
-            })
+            files.append(
+                {
+                    "key": key,
+                    "format": format,
+                    "content_type": content_type,
+                    "size": obj["Size"],
+                }
+            )
 
-        
     except Exception as e:
         logger.error(f"Error listing files in directory {directory_path}: {e}")
 
     return files
 
-def create_batch_jsonl(files, prompt_config, bucket):
-    jsonl_lines = []
-
-    for file_info in files:
-        try:
-            record = create_batch_input_record(file_info, prompt_config, bucket)
-            jsonl_lines.append(json.dumps(record))
-        except Exception as e:
-            logger.error(f"Error creating record for {file_info['key']}: {e}")
-    
-    return '\n'.join(jsonl_lines)
-
-def create_batch_input_record(file_info, prompt_config, bucket):
-    record_id = f"{file_info['key'].replace('/','-').replace('.','-')}"
-
-    content = [
-        {"type": "text", "text": prompt_config['prompt']}
-    ]
-
-    if file_info['content_type'] == 'image':
-        content.append({
-            "type": "image", 
-            "source": {
-                "s3Location": {
-                    "uri": f"s3://{bucket}/{file_info['key']}"
-                }
-            }
-        })
-    
-    return {
-        "recordId": record_id,
-        "modelInput": {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1024,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": content
-                }
-            ]
-        }
-    }
 
 def get_file_format_and_content_type(file_key):
     _, ext = os.path.splitext(file_key)
-    if ext.lower() in SUPPORTED_EXTENSIONS:
-        return ext.lower()[1:], 'image'
-    else:
-        raise ValueError(f"Unsupported file format: {ext}")
+    return ext.lower()[1:], "image"
+
+
+def create_processing_record(file_info, prompt_config, bucket):
+    record_id = f"{file_info['key'].replace('/', '-').replace('.', '-')}"
+
+    content = [{"type": "text", "text": prompt_config["prompt"]}]
+
+    if file_info["content_type"] == "image":
+        content.append(
+            {
+                "image": {
+                    "format": file_info["format"],
+                    "source": {
+                        "s3Location": {"uri": f"s3://{bucket}/{file_info['key']}"}
+                    },
+                }
+            }
+        )
+
+    return {
+        "recordId": record_id,
+        "file_key": file_info["key"],
+        "file_format": file_info["format"],
+        "content_type": file_info["content_type"],
+        "modelInput": {
+            "inferenceConfig": {"maxTokens": 1024},
+            "messages": [{"role": "user", "content": content}],
+        },
+    }
+
+
+def create_batch_records(files, prompt_config, bucket):
+    records = []
+
+    for file_info in files:
+        try:
+            record = create_processing_record(file_info, prompt_config, bucket)
+            records.append(record)
+        except Exception as e:
+            logger.error(f"Error creating record for {file_info['key']}: {e}")
+
+    return records
