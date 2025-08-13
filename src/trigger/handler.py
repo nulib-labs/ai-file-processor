@@ -143,7 +143,7 @@ def get_file_format_and_content_type(file_key):
 def create_processing_record(file_info, prompt_config, bucket):
     record_id = f"{file_info['key'].replace('/', '-').replace('.', '-')}"
 
-    content = [{"type": "text", "text": prompt_config["prompt"]}]
+    content = [{"text": prompt_config["prompt"]}]
 
     if file_info["content_type"] == "image":
         content.append(
