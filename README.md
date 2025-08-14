@@ -312,15 +312,26 @@ aws s3 ls s3://your-prefix-ai-file-processor-output/ --recursive
 ### Local Testing
 
 ```bash
-# Run tests
+# Run unit tests
 python -m pytest tests/ -v
 
-# Local Lambda invocation
+# Test individual Lambda functions locally
+sam build
+
+# Test trigger function with mock S3 event
 sam local invoke TriggerFunction -e tests/fixtures/s3_event.json
 
-# Build and test
-sam build && sam local start-api
+# Test worker function with mock input
+sam local invoke WorkerFunction -e tests/fixtures/worker_event.json
+
+# Note: Full integration testing requires deployed AWS resources
+# (S3 buckets, Step Functions, Bedrock) which cannot run locally
 ```
+
+**Limitations of Local Testing:**
+- S3 buckets, Step Functions, and Bedrock services must be mocked or deployed
+- Full workflow testing requires actual AWS deployment
+- Local testing is mainly useful for unit tests and individual function validation
 
 ### Configuration Files
 
