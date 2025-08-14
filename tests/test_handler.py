@@ -43,7 +43,11 @@ class TestLambdaHandler:
              patch('handler.stepfunctions_client.start_execution') as mock_step:
             
             mock_get_object.return_value = mock_response
-            mock_list.return_value = mock_list_response
+            # Mock different responses for different calls
+            mock_list.side_effect = [
+                {},  # First call: output directory check (no existing files - no Contents key)
+                mock_list_response  # Second call: input directory file listing
+            ]
             mock_step.return_value = {'executionArn': 'arn:aws:states:execution'}
             
             result = lambda_handler(event, {})
@@ -52,7 +56,7 @@ class TestLambdaHandler:
             assert result['body'] == 'success'
             mock_get_object.assert_called_once_with(
                 Bucket='test-ai-file-processor-input',
-                Key='_prompt.json'
+                Key='test-folder/_prompt.json'
             )
             
             # Verify status file was created
@@ -109,6 +113,104 @@ class TestLambdaHandler:
             
             assert result['statusCode'] == 200
             assert result['body'] == 'success'
+    
+    def test_lambda_handler_duplicate_job_prevention(self):
+        """Test handling of duplicate job when output directory already exists"""
+        event = self.load_fixture('s3_event.json')
+        sample_prompt = self.load_fixture('sample_prompt.json')
+        
+        mock_response = {
+            'Body': MagicMock()
+        }
+        mock_response['Body'].read.return_value = json.dumps(sample_prompt).encode('utf-8')
+        
+        # Mock output bucket to show existing files (job already exists)
+        mock_output_list_response = {
+            'Contents': [
+                {'Key': '_status.json', 'Size': 500}
+            ]
+        }
+        
+        with patch('handler.s3_client.get_object') as mock_get_object, \
+             patch('handler.s3_client.list_objects_v2') as mock_list, \
+             patch('handler.s3_client.put_object') as mock_put:
+            
+            mock_get_object.return_value = mock_response
+            mock_list.return_value = mock_output_list_response
+            
+            result = lambda_handler(event, {})
+            
+            assert result['statusCode'] == 200
+            assert result['body'] == 'success'
+            
+            # Verify status file was created for duplicate job error
+            error_put_calls = [call for call in mock_put.call_args_list 
+                              if 'Job already exists' in str(call)]
+            assert len(error_put_calls) == 1
+
+    def test_lambda_handler_invalid_directory_depth_root(self):
+        """Test handling of _prompt.json in root directory (too shallow)"""
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "test-ai-file-processor-input"},
+                    "object": {"key": "_prompt.json"}
+                }
+            }]
+        }
+        sample_prompt = self.load_fixture('sample_prompt.json')
+        
+        mock_response = {
+            'Body': MagicMock()
+        }
+        mock_response['Body'].read.return_value = json.dumps(sample_prompt).encode('utf-8')
+        
+        with patch('handler.s3_client.get_object') as mock_get_object, \
+             patch('handler.s3_client.put_object') as mock_put:
+            
+            mock_get_object.return_value = mock_response
+            
+            result = lambda_handler(event, {})
+            
+            assert result['statusCode'] == 200
+            assert result['body'] == 'success'
+            
+            # Verify error status file was created for invalid directory depth
+            error_put_calls = [call for call in mock_put.call_args_list 
+                              if 'Invalid directory structure' in str(call)]
+            assert len(error_put_calls) == 1
+
+    def test_lambda_handler_invalid_directory_depth_nested(self):
+        """Test handling of _prompt.json in nested directory (too deep)"""
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "test-ai-file-processor-input"},
+                    "object": {"key": "folder/subfolder/_prompt.json"}
+                }
+            }]
+        }
+        sample_prompt = self.load_fixture('sample_prompt.json')
+        
+        mock_response = {
+            'Body': MagicMock()
+        }
+        mock_response['Body'].read.return_value = json.dumps(sample_prompt).encode('utf-8')
+        
+        with patch('handler.s3_client.get_object') as mock_get_object, \
+             patch('handler.s3_client.put_object') as mock_put:
+            
+            mock_get_object.return_value = mock_response
+            
+            result = lambda_handler(event, {})
+            
+            assert result['statusCode'] == 200
+            assert result['body'] == 'success'
+            
+            # Verify error status file was created for invalid directory depth
+            error_put_calls = [call for call in mock_put.call_args_list 
+                              if 'Invalid directory structure' in str(call)]
+            assert len(error_put_calls) == 1
 
 
 if __name__ == '__main__':

@@ -44,11 +44,24 @@ def lambda_handler(event, context):
             if "prompt" not in prompt_config:
                 raise ValueError("Missing required field: 'prompt'")
 
-            ## TODO validate one level directory only
-
-            directory_path = "/".join(key.split("/")[:-1])
+            # Validate directory depth and build directory path
+            key_parts = key.split("/")
+            directory_path = "/".join(key_parts[:-1])
             if directory_path:
                 directory_path += "/"
+            
+            # Must be exactly one level deep
+            if len(key_parts) != 2:
+                error_msg = f"Invalid directory structure. Expected exactly one level deep (folder/_prompt.json), got: {key}"
+                logger.error(error_msg)
+                create_status_file(directory_path, "error", error_msg, 0, 0)
+                continue
+
+            # Check if output directory already exists (job already running/completed)
+            if check_output_directory_exists(directory_path):
+                logger.info(f"Output directory already exists for {directory_path}, skipping job")
+                create_status_file(directory_path, "error", f"Job output already exists for {directory_path}, Delete this directory and retry", 0, 0)
+                continue
 
             files = list_files_in_directory(bucket, directory_path)
             logger.info(f"Found {len(files)} processable files")
@@ -172,6 +185,27 @@ def create_batch_records(files, prompt_config, bucket):
             logger.error(f"Error creating record for {file_info['key']}: {e}")
 
     return records
+
+
+def check_output_directory_exists(directory_path):
+    """Check if output directory already exists in output bucket"""
+    try:
+        # Check for any objects with the directory path prefix in output bucket
+        response = s3_client.list_objects_v2(
+            Bucket=OUTPUT_BUCKET,
+            Prefix=directory_path,
+            MaxKeys=1
+        )
+
+        logger.info(f"Directory check response: {response}")
+        
+        # If any objects exist with this prefix, directory exists
+        return 'Contents' in response and len(response['Contents']) > 0
+        
+    except Exception as e:
+        logger.error(f"Error checking output directory {directory_path}: {e}")
+        # If we can't check, allow the job to proceed
+        return False
 
 
 def create_status_file(directory_path, status, message, total_files, completed_files, execution_arn=None):

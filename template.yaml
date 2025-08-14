@@ -40,6 +40,12 @@ Resources:
         - Statement:
           - Effect: Allow
             Action:
+              - s3:ListBucket
+            Resource: 
+              - !Sub 'arn:aws:s3:::${StackPrefix}-ai-file-processor-input'
+              - !Sub 'arn:aws:s3:::${OutputBucket}'
+          - Effect: Allow
+            Action:
               - states:StartExecution
             Resource: !Ref ProcessingStateMachine
   TriggerFunctionPermission:
