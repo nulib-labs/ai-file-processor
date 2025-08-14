@@ -115,9 +115,7 @@ Resources:
               - bedrock:Converse
               - bedrock:ConverseStream
             Resource: 
-              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/${ModelId}'
-              - !Sub 'arn:aws:bedrock:${AWS::Region}::inference-profile/${ModelId}'
-
+              - '*'
 
         
 

@@ -51,7 +51,7 @@
         }
       },
       "Parameters": {"outputBucket.$": "$.output_bucket", "directoryPath.$": "$.directory_path", "item.$": "$$.Map.Item.Value"},
-      "MaxConcurrency": 50,
+      "MaxConcurrency": 10,
       "Label": "ProcessFiles",
       "End": true
     }

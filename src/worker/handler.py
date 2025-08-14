@@ -4,6 +4,7 @@ import os
 import boto3
 from datetime import datetime
 from botocore.exceptions import ClientError
+import base64
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -23,16 +24,83 @@ def lambda_handler(event, context):
         file_key = record['file_key']
         model_input = record['modelInput']
         record_id = record['recordId']
+        prompt = model_input['messages'][0]['content'][0]['text']
 
-        logger.info(f"Processing {record_id} from {file_key}")
+        s3_location = model_input['messages'][0]['content'][1]['image']['source']['s3Location']['uri']
 
-        response = bedrock_runtime.converse(
+        logger.info(f"Processing {s3_location}")
+
+        bucket = s3_location.split('/')[2]
+        key = '/'.join(s3_location.split('/')[3:])
+
+        response = s3_client.get_object(Bucket=bucket, Key=key)
+        image_data = response['Body'].read()
+        base64_encoded = base64.b64encode(image_data).decode('utf-8')
+
+        request_body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 8192,
+            "temperature": 0.1,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt    
+                        },                    
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": get_media_type(key),
+                                "data": base64_encoded
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+        response = bedrock_runtime.invoke_model(
             modelId=MODEL_ID,
-            messages = model_input['messages'],
-            inferenceConfig = model_input['inferenceConfig']
+            body=json.dumps(request_body)
         )
 
-        print(response['output']['message']['content'][0]['text'])
+        response_body = json.loads(response.get('body').read().decode('utf-8'))
+        response_text = response_body['content'][0]['text']
+        
+        usage = response_body.get('usage', {})
+        input_tokens = usage.get('input_tokens', 0)
+        output_tokens = usage.get('output_tokens', 0)
+        
+        logger.info(f"Response: {json.dumps(response_body, indent=2)}")
+        logger.info(f"Token usage - Input: {input_tokens}, Output: {output_tokens}")
+
+        # Write result to S3 as individual JSON file
+        output_key = f"{file_key}.json"
+        
+        s3_client.put_object(
+            Bucket=output_bucket,
+            Key=output_key,
+            Body=response_text,
+            ContentType='application/json',
+            Metadata={
+                'record-id': record_id,
+                'processing-status': 'success',
+                # 'total-tokens': str(response['usage']['totalTokens'])
+            }
+        )
+
+        return {
+            "statusCode": 200,
+            "recordId": record_id,
+            "file_key": file_key,
+            "output_key": output_key,
+            # "tokens_used": response['usage']['totalTokens'],
+            "status": "success"
+        }
+        
 
     except ClientError as e:
         error_code = e.response['Error']['Code']
@@ -48,4 +116,19 @@ def lambda_handler(event, context):
             "error_code": error_code,
             "error_message": error_message
         }
+
+def get_media_type(filename):
+    """
+    Get media type for Claude based on file extension
+    """
+    extension = filename.lower().split('.')[-1]
+    media_types = {
+        'pdf': 'application/pdf',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'tiff': 'image/tiff',
+        'tif': 'image/tiff'
+    }
+    return media_types.get(extension, 'image/jpeg')
 
