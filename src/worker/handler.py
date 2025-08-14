@@ -22,18 +22,13 @@ def lambda_handler(event, context):
         output_bucket = event['output_bucket']
 
         file_key = record['file_key']
-        model_input = record['modelInput']
+        bucket = record['bucket']
         record_id = record['recordId']
-        prompt = model_input['messages'][0]['content'][0]['text']
+        prompt = record['prompt']
 
-        s3_location = model_input['messages'][0]['content'][1]['image']['source']['s3Location']['uri']
+        logger.info(f"Processing s3://{bucket}/{file_key}")
 
-        logger.info(f"Processing {s3_location}")
-
-        bucket = s3_location.split('/')[2]
-        key = '/'.join(s3_location.split('/')[3:])
-
-        response = s3_client.get_object(Bucket=bucket, Key=key)
+        response = s3_client.get_object(Bucket=bucket, Key=file_key)
         image_data = response['Body'].read()
         base64_encoded = base64.b64encode(image_data).decode('utf-8')
 
@@ -53,7 +48,7 @@ def lambda_handler(event, context):
                             "type": "image",
                             "source": {
                                 "type": "base64",
-                                "media_type": get_media_type(key),
+                                "media_type": get_media_type(file_key),
                                 "data": base64_encoded
                             }
                         }

@@ -143,29 +143,13 @@ def get_file_format_and_content_type(file_key):
 def create_processing_record(file_info, prompt_config, bucket):
     record_id = f"{file_info['key'].replace('/', '-').replace('.', '-')}"
 
-    content = [{"text": prompt_config["prompt"]}]
-
-    if file_info["content_type"] == "image":
-        content.append(
-            {
-                "image": {
-                    "format": file_info["format"],
-                    "source": {
-                        "s3Location": {"uri": f"s3://{bucket}/{file_info['key']}"}
-                    },
-                }
-            }
-        )
-
     return {
         "recordId": record_id,
         "file_key": file_info["key"],
+        "bucket": bucket,
+        "prompt": prompt_config["prompt"],
         "file_format": file_info["format"],
         "content_type": file_info["content_type"],
-        "modelInput": {
-            "inferenceConfig": {"maxTokens": 1024},
-            "messages": [{"role": "user", "content": content}],
-        },
     }
 
 

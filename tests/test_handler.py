@@ -6,6 +6,7 @@ import os
 
 # Set environment variables before importing handler
 os.environ['OUTPUT_BUCKET'] = "output-bucket-test" 
+os.environ['STATE_MACHINE_ARN'] = 'arn:aws:states:us-east-1:123456789012:stateMachine:test-machine'
 os.environ['BEDROCK_ROLE_ARN'] = 'arn:1234567'
 os.environ['MODEL_ID'] = 'model_id'
 
@@ -28,8 +29,22 @@ class TestLambdaHandler:
         }
         mock_response['Body'].read.return_value = json.dumps(sample_prompt).encode('utf-8')
         
-        with patch('handler.s3_client.get_object') as mock_get_object:
+        # Mock list_objects_v2 to return some files
+        mock_list_response = {
+            'Contents': [
+                {'Key': 'image1.jpg', 'Size': 1024},
+                {'Key': 'image2.png', 'Size': 2048}
+            ]
+        }
+        
+        with patch('handler.s3_client.get_object') as mock_get_object, \
+             patch('handler.s3_client.list_objects_v2') as mock_list, \
+             patch('handler.s3_client.put_object') as mock_put, \
+             patch('handler.stepfunctions_client.start_execution') as mock_step:
+            
             mock_get_object.return_value = mock_response
+            mock_list.return_value = mock_list_response
+            mock_step.return_value = {'executionArn': 'arn:aws:states:execution'}
             
             result = lambda_handler(event, {})
             
