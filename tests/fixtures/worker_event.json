@@ -1,0 +1,12 @@
+{
+  "record": {
+    "recordId": "test-folder-image1-jpg",
+    "file_key": "test-folder/image1.jpg",
+    "bucket": "test-ai-file-processor-input",
+    "prompt": "Analyze this image and extract key information in JSON format with fields: title, description, objects_detected, and confidence_score.",
+    "file_format": "jpg",
+    "content_type": "image"
+  },
+  "output_bucket": "test-ai-file-processor-output",
+  "directory_path": "test-folder/"
+}
