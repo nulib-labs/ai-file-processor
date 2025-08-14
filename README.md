@@ -73,7 +73,7 @@ Edit `samconfig.your-env.toml`:
 stack_name = "your-stack-name"
 parameter_overrides = [
     "StackPrefix=your-prefix",
-    "ModelId=us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    "ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0"
 ]
 ```
 
@@ -112,7 +112,6 @@ your-bucket/
 ├── project1/
 │   ├── image1.jpg
 │   ├── image2.png
-│   ├── document.pdf
 │   └── _prompt.json
 └── analysis-batch/
     ├── file1.jpg
@@ -160,6 +159,13 @@ Create a `_prompt.json` file in each directory:
 ```json
 {
   "prompt": "Translate this document to English and return both the original text and translation in JSON format."
+}
+```
+
+**More Advanced Prompts**
+```json
+{
+  "prompt": "This is part of a handwritten correspondence. Please identify whether it is first page, last page, middle page, or single page. First page usually has a salutation and possibly a date, last pages would have a closing, middle pages would have neither, and single page letters would have both a salutation and a closing. Please output in normalized json format. Please include the trasciption of the full document and full english translation if not in english. Also include a short list of topical keywords\n\n```json\njson_data = {\n  \"page_type\": \"first_page\",\n  \"confidence\": \"[Z%]\",\n  \"reasoning\": \"This page contains a date and a line starting with Dear...\", \"transcription\": \"[transcribed text]\", \"english_translation\": \"[translation]\", \"topic_keywords\": [array of keywords] \n}```\n\nPlease include your confidence level and a brief explanation of why you identified the page type. Do not include any text outside of the json itself."
 }
 ```
 
