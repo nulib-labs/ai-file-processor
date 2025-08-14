@@ -131,7 +131,7 @@ your-bucket/
 
 - **Images**: `.png`, `.jpg`, `.jpeg`
 - Future support planned for PDFs and text files
-- **Image Size**: Images must be under ~3MB
+- **Image Size**: Image files must be under ~3MB each
 
 ### Prompt Configuration
 
@@ -277,7 +277,6 @@ The system enforces several validation rules:
 
 **Estimated costs** (us-east-1, Claude 3.5 Sonnet):
 - ~$0.01-0.05 per image depending on complexity and response length
-- Bulk discounts may apply for large batches
 
 ## Limitations
 
