@@ -1,2 +1,348 @@
-# ai-file-processor
+# AI File Processor
+
+A serverless AWS application for batch processing files using Claude AI models. This is a quick and dirty solution designed for rapid analysis of individual files, perfect for generating datasets, extracting structured content from unstructured data, or performing bulk document analysis.
+
+## Overview
+
+The AI File Processor is a serverless system that processes files uploaded to S3 using AWS Bedrock's Claude models. It's designed for use cases like:
+
+- **Dataset Generation**: Convert unstructured documents/images into structured JSON data
+- **Content Analysis**: Extract key information from business documents, forms, or receipts
+- **Object Recognition**: Identify and catalog objects in images
+- **Document Transcription**: Convert handwritten or printed text to digital format
+- **Translation**: Translate documents between languages
+- **Quick Analysis**: Rapid processing of document batches for research or analysis
+
+## Architecture
+
+```
+[S3 Input Bucket] → [Lambda Trigger] → [Step Functions] → [Worker Lambdas] → [S3 Output Bucket]
+       ↓                    ↓                ↓                    ↓               ↓
+   Upload files         Validates       Distributes         Processes      Results & Status
+   + _prompt.json       structure       work in           each file           files
+                                       parallel          with Claude
+```
+
+### Components
+
+- **Input S3 Bucket**: Upload your files and prompt configuration
+- **Trigger Lambda**: Validates structure, prevents duplicates, starts processing
+- **Step Functions**: Orchestrates parallel processing of files
+- **Worker Lambdas**: Process individual files using Claude via Bedrock
+- **Output S3 Bucket**: Contains results and status tracking
+- **Status Updates**: Real-time status tracking via JSON files
+
+## Prerequisites
+
+- AWS CLI configured with appropriate permissions
+- AWS SAM CLI installed
+- Python 3.11+
+- Access to AWS Bedrock Claude models in your region
+
+### Required AWS Permissions
+
+Your deployment user needs:
+- CloudFormation stack creation/update
+- Lambda function creation/management
+- S3 bucket creation/management
+- Step Functions state machine creation
+- IAM role/policy creation
+- Bedrock model access
+
+## Deployment
+
+### 1. Clone and Configure
+
+```bash
+git clone <repository-url>
+cd ai-file-processor
+```
+
+### 2. Configure Deployment
+
+Copy and customize the SAM configuration:
+
+```bash
+cp samconfig.toml.example samconfig.your-env.toml
+```
+
+Edit `samconfig.your-env.toml`:
+
+```toml
+[default.deploy.parameters]
+stack_name = "your-stack-name"
+parameter_overrides = [
+    "StackPrefix=your-prefix",
+    "ModelId=us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+]
+```
+
+**Available Models** (check Bedrock console for your region):
+- You may need to request AWS enable models
+- Use the "Inference profile ARN" for the appropriate Claude model located in AWS Console -> Amazon Bedrock -> Infer -> Cross-region inference -> Inference profiles
+
+### 3. Deploy
+
+```bash
+# Validate template
+sam validate
+
+# Build application
+sam build
+
+# Deploy with your configuration
+sam deploy --config-file samconfig.your-env.toml
+```
+
+### 4. Note the S3 Bucket Names
+
+After deployment, note the created bucket names:
+- Input: `{StackPrefix}-ai-file-processor-input`
+- Output: `{StackPrefix}-ai-file-processor-output`
+
+## Usage
+
+### Directory Structure Requirements
+
+Files must be organized in exactly **one level deep** directories:
+
+```
+✅ VALID:
+your-bucket/
+├── project1/
+│   ├── image1.jpg
+│   ├── image2.png
+│   ├── document.pdf
+│   └── _prompt.json
+└── analysis-batch/
+    ├── file1.jpg
+    ├── file2.jpeg
+    └── _prompt.json
+
+❌ INVALID:
+your-bucket/
+├── _prompt.json              # Too shallow (root level)
+└── project/
+    └── subfolder/
+        ├── image.jpg
+        └── _prompt.json      # Too deep (nested)
+```
+
+### Supported File Types
+
+- **Images**: `.png`, `.jpg`, `.jpeg`
+- Future support planned for PDFs and text files
+
+### Prompt Configuration
+
+Create a `_prompt.json` file in each directory:
+
+```json
+{
+  "prompt": "Analyze this image and extract key information in JSON format with fields: title, description, objects_detected, and confidence_score."
+}
+```
+
+**Example Prompts:**
+
+```json
+{
+  "prompt": "Extract all text from this document and format as structured JSON with sections for headers, body text, and any numerical data."
+}
+```
+
+```json
+{
+  "prompt": "Identify all objects in this image and return a JSON array with object_name, location, and confidence for each detected item."
+}
+```
+
+```json
+{
+  "prompt": "Translate this document to English and return both the original text and translation in JSON format."
+}
+```
+
+### Processing Workflow
+
+1. **Upload Files**: Upload your files to the input bucket in a folder
+2. **Add Prompt**: Upload `_prompt.json` to trigger processing
+3. **Monitor Status**: Check the status file in the output bucket
+4. **Retrieve Results**: Download processed results from output bucket
+
+### Example Usage
+
+```bash
+# Upload files to input bucket
+aws s3 cp image1.jpg s3://your-prefix-ai-file-processor-input/batch-001/
+aws s3 cp image2.png s3://your-prefix-ai-file-processor-input/batch-001/
+aws s3 cp document.pdf s3://your-prefix-ai-file-processor-input/batch-001/
+
+# Create and upload prompt file (this triggers processing)
+echo '{"prompt": "Extract all text and key information from this document"}' > _prompt.json
+aws s3 cp _prompt.json s3://your-prefix-ai-file-processor-input/batch-001/
+
+# Check processing status
+aws s3 cp s3://your-prefix-ai-file-processor-output/batch-001/_status.json ./status.json
+cat status.json
+
+# Download results when complete
+aws s3 sync s3://your-prefix-ai-file-processor-output/batch-001/ ./results/
+```
+
+## Status Tracking
+
+The system creates status files in the output bucket to track progress:
+
+### Status File Format (`{directory}_status.json`)
+
+```json
+{
+  "status": "in_progress",
+  "message": "Processing 5 files",
+  "total_files": 5,
+  "completed_files": 0,
+  "timestamp": "2025-01-15T10:30:00.123Z",
+  "directory_path": "batch-001/",
+  "execution_arn": "arn:aws:states:execution:..."
+}
+```
+
+### Status Values
+
+- **`in_progress`**: Files are being processed
+- **`completed`**: All files processed successfully
+- **`error`**: Processing failed (see message for details)
+
+### Common Error Messages
+
+- `"Invalid directory structure"`: Files not in exactly one-level-deep directory
+- `"Job output already exists"`: Duplicate job prevention (delete output directory to retry)
+- `"No processable files found"`: No supported file types in directory
+- `"Processing failed"`: Step Functions execution error
+
+## Output Format
+
+Each processed file generates a `.json` result file:
+
+**Input**: `batch-001/image1.jpg`
+**Output**: `batch-001/image1.jpg.json`
+
+Example result content:
+```json
+{
+  "title": "Product Catalog Page",
+  "description": "Image showing various electronic devices with pricing",
+  "objects_detected": [
+    {"name": "smartphone", "confidence": 0.95},
+    {"name": "laptop", "confidence": 0.87}
+  ],
+  "extracted_text": "$299.99, $1,499.99",
+  "analysis_timestamp": "2025-01-15T10:35:22Z"
+}
+```
+
+## Validation Rules
+
+The system enforces several validation rules:
+
+### ✅ Valid Scenarios
+
+- Directory exactly one level deep: `folder/_prompt.json`
+- Supported file types in directory
+- Valid JSON in `_prompt.json` with `prompt` field
+- No existing output for the directory
+
+### ❌ Invalid Scenarios
+
+- Root level prompt: `_prompt.json`
+- Nested directories: `folder/sub/_prompt.json`
+- Missing `prompt` field in JSON
+- Output directory already exists (prevents duplicates)
+- No processable files in directory
+
+## Cost Considerations
+
+- **Bedrock Charges**: Based on input/output tokens per file
+- **Lambda Charges**: Minimal for processing orchestration
+- **S3 Charges**: Storage and request costs
+- **Step Functions**: Per state transition
+
+**Estimated costs** (us-east-1, Claude 3.5 Sonnet):
+- ~$0.01-0.05 per image depending on complexity and response length
+- Bulk discounts may apply for large batches
+
+## Limitations
+
+- **File Size**: Limited by Lambda memory (1GB) and timeout (5 minutes per file)
+- **Concurrency**: Max 10 files processed simultaneously (configurable)
+- **File Types**: Currently images only (PDF/text support planned)
+- **Region**: Must be deployed in region with Bedrock model access
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Access Denied" errors**: Check Bedrock model permissions in your region
+2. **Files not processing**: Verify directory structure and file types
+3. **Status stuck on "in_progress"**: Check Step Functions execution in AWS Console
+4. **"Job already exists"**: Delete output directory and retry
+
+### Debugging
+
+```bash
+# Check CloudWatch logs
+aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/your-prefix"
+
+# View Step Functions execution
+aws stepfunctions list-executions --state-machine-arn <your-state-machine-arn>
+
+# Check S3 bucket contents
+aws s3 ls s3://your-prefix-ai-file-processor-output/ --recursive
+```
+
+## Development
+
+### Local Testing
+
+```bash
+# Run tests
+python -m pytest tests/ -v
+
+# Local Lambda invocation
+sam local invoke TriggerFunction -e tests/fixtures/s3_event.json
+
+# Build and test
+sam build && sam local start-api
+```
+
+### Configuration Files
+
+- `template.yaml`: CloudFormation/SAM template
+- `samconfig.toml`: Generic SAM configuration
+- `samconfig.example.toml`: Example environment-specific config
+
+## Security
+
+- All S3 buckets have public access blocked
+- IAM roles follow least-privilege principles
+- Lambda functions run with minimal required permissions
+- No secrets or credentials stored in code
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+This is a quick and dirty solution designed for rapid prototyping. For production use, consider:
+
+- Enhanced error handling and retries
+- Support for additional file types
+- Batch cost optimization
+- Advanced monitoring and alerting
+- Input validation and sanitization
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
