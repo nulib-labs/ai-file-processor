@@ -54,6 +54,14 @@ class TestLambdaHandler:
                 Bucket='test-ai-file-processor-input',
                 Key='prompt.json'
             )
+            
+            # Verify status file was created
+            status_put_calls = [call for call in mock_put.call_args_list 
+                               if '_status.json' in str(call)]
+            assert len(status_put_calls) == 1
+            
+            # Verify Step Functions execution was started
+            mock_step.assert_called_once()
     
     def test_lambda_handler_invalid_json(self):
         """Test handling of invalid JSON in S3 object"""

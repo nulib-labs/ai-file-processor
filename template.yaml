@@ -84,9 +84,12 @@ Resources:
       DefinitionUri: src/statemachine/definition.asl.json
       DefinitionSubstitutions:
         WorkerFunctionArn: !GetAtt WorkerFunction.Arn
+        StatusUpdateFunctionArn: !GetAtt StatusUpdateFunction.Arn
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref WorkerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref StatusUpdateFunction
         - S3ReadPolicy:
             BucketName: !Ref OutputBucket
         - StepFunctionsExecutionPolicy:
@@ -116,6 +119,21 @@ Resources:
               - bedrock:ConverseStream
             Resource: 
               - '*'
+  StatusUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${StackPrefix}-status-update'
+      CodeUri: src/status/
+      Handler: handler.lambda_handler
+      Description: Updates processing status files in output bucket
+      Environment:
+        Variables:
+          OUTPUT_BUCKET: !Ref OutputBucket
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref OutputBucket
+        - S3WritePolicy:
+            BucketName: !Ref OutputBucket
 
         
 

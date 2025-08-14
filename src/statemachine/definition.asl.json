@@ -1,7 +1,21 @@
 {
   "Comment": "AI File Processor - Process files in parallel using Bedrock with Distributed Map",
-  "StartAt": "ProcessFiles",
+  "StartAt": "StoreContext",
   "States": {
+    "StoreContext": {
+      "Type": "Pass",
+      "Parameters": {
+        "context": {
+          "directory_path.$": "$.directory_path",
+          "output_bucket.$": "$.output_bucket",
+          "batch_file_key.$": "$.batch_file_key"
+        },
+        "batch_file_key.$": "$.batch_file_key",
+        "output_bucket.$": "$.output_bucket",
+        "directory_path.$": "$.directory_path"
+      },
+      "Next": "ProcessFiles"
+    },
     "ProcessFiles": {
       "Type": "Map",
       "ItemProcessor": {
@@ -53,6 +67,43 @@
       "Parameters": {"outputBucket.$": "$.output_bucket", "directoryPath.$": "$.directory_path", "item.$": "$$.Map.Item.Value"},
       "MaxConcurrency": 10,
       "Label": "ProcessFiles",
+      "ResultPath": "$.mapResults",
+      "Next": "UpdateStatusSuccess",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "UpdateStatusError",
+          "ResultPath": "$.Error"
+        }
+      ]
+    },
+    "UpdateStatusSuccess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${StatusUpdateFunctionArn}",
+        "Payload": {
+          "directory_path.$": "$.context.directory_path",
+          "status": "completed",
+          "message": "All files processed successfully",
+          "execution_arn.$": "$$.Execution.Name"
+        }
+      },
+      "End": true
+    },
+    "UpdateStatusError": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${StatusUpdateFunctionArn}",
+        "Payload": {
+          "directory_path.$": "$.context.directory_path",
+          "status": "error",
+          "message": "Processing failed",
+          "error.$": "$.Error",
+          "execution_arn.$": "$$.Execution.Name"
+        }
+      },
       "End": true
     }
   }

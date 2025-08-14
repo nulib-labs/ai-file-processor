@@ -55,7 +55,7 @@ def lambda_handler(event, context):
 
             if not files:
                 logger.info("No processable files found in directory.")
-                # TODO create status file
+                create_status_file(directory_path, "error", "No processable files found", 0, 0)
                 continue
 
             batch_records = create_batch_records(files, prompt_config, bucket)
@@ -87,10 +87,18 @@ def lambda_handler(event, context):
             execution_arn = response['executionArn']
             logger.info(f"Started Step Functions execution: {execution_arn}")
 
-            ## TODO create status file
+            create_status_file(directory_path, "in_progress", f"Processing {len(files)} files", len(files), 0, execution_arn)
 
         except Exception as e:
-            print(f"Error reading object: {key}: {e}")
+            logger.error(f"Error processing {key}: {e}")
+            # Try to create error status file if we can determine directory path
+            try:
+                directory_path = "/".join(key.split("/")[:-1])
+                if directory_path:
+                    directory_path += "/"
+                create_status_file(directory_path, "error", f"Processing failed: {str(e)}", 0, 0)
+            except Exception:
+                pass  # Don't fail if we can't create status file
 
     return {"statusCode": 200, "body": "success"}
 
@@ -164,3 +172,31 @@ def create_batch_records(files, prompt_config, bucket):
             logger.error(f"Error creating record for {file_info['key']}: {e}")
 
     return records
+
+
+def create_status_file(directory_path, status, message, total_files, completed_files, execution_arn=None):
+    """Create or update status file in output bucket"""
+    status_key = f"{directory_path}_status.json"
+    
+    status_data = {
+        "status": status,
+        "message": message,
+        "total_files": total_files,
+        "completed_files": completed_files,
+        "timestamp": datetime.now().isoformat(),
+        "directory_path": directory_path
+    }
+    
+    if execution_arn:
+        status_data["execution_arn"] = execution_arn
+    
+    try:
+        s3_client.put_object(
+            Bucket=OUTPUT_BUCKET,
+            Key=status_key,
+            Body=json.dumps(status_data, indent=2),
+            ContentType='application/json'
+        )
+        logger.info(f"Created status file: s3://{OUTPUT_BUCKET}/{status_key}")
+    except Exception as e:
+        logger.error(f"Failed to create status file: {e}")
