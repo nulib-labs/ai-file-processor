@@ -131,6 +131,7 @@ your-bucket/
 
 - **Images**: `.png`, `.jpg`, `.jpeg`
 - Future support planned for PDFs and text files
+- **Image Size**: Images must be under ~3MB
 
 ### Prompt Configuration
 
