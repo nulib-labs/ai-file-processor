@@ -61,7 +61,7 @@ Resources:
               S3Key:
                 Rules:
                   - Name: suffix
-                    Value: prompt.json
+                    Value: _prompt.json
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

@@ -115,7 +115,7 @@ def list_files_in_directory(bucket, directory_path):
             key = obj["Key"]
 
             if (
-                key.endswith("prompt.json")
+                key.endswith("_prompt.json")
                 or key.endswith(".json")
                 or key.endswith("/")
             ):

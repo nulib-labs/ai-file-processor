@@ -52,7 +52,7 @@ class TestLambdaHandler:
             assert result['body'] == 'success'
             mock_get_object.assert_called_once_with(
                 Bucket='test-ai-file-processor-input',
-                Key='prompt.json'
+                Key='_prompt.json'
             )
             
             # Verify status file was created
