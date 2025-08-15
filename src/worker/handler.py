@@ -85,7 +85,9 @@ def lambda_handler(event, context):
             Metadata={
                 'record-id': record_id,
                 'processing-status': 'success',
-                # 'total-tokens': str(response['usage']['totalTokens'])
+                'input-tokens': str(input_tokens),
+                'output-tokens': str(output_tokens),
+                'total-tokens': str(input_tokens + output_tokens)
             }
         )
 
@@ -158,7 +160,10 @@ def write_error_file(s3_client, output_bucket, file_key, record_id, error_code, 
             Metadata={
                 'record-id': record_id,
                 'processing-status': 'error',
-                'error-code': error_code
+                'error-code': error_code,
+                'input-tokens': '0',
+                'output-tokens': '0',
+                'total-tokens': '0'
             }
         )
         logger.info(f"Wrote error file: {output_key}")

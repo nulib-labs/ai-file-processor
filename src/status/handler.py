@@ -36,6 +36,53 @@ def lambda_handler(event, context):
         except Exception as e:
             logger.warning(f"Could not read current status file: {e}")
         
+        # Aggregate token usage from S3 metadata if status is completed
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        successful_files = 0
+        failed_files = 0
+        
+        if status == "completed":
+            try:
+                # List all JSON files in the directory
+                response = s3_client.list_objects_v2(
+                    Bucket=OUTPUT_BUCKET,
+                    Prefix=directory_path
+                )
+                
+                if 'Contents' in response:
+                    for obj in response['Contents']:
+                        if obj['Key'].endswith('.json') and not obj['Key'].endswith('_status.json'):
+                            try:
+                                # Get metadata for each output file
+                                head_response = s3_client.head_object(
+                                    Bucket=OUTPUT_BUCKET,
+                                    Key=obj['Key']
+                                )
+                                
+                                metadata = head_response.get('Metadata', {})
+                                
+                                # Aggregate token counts
+                                total_input_tokens += int(metadata.get('input-tokens', 0))
+                                total_output_tokens += int(metadata.get('output-tokens', 0))
+                                total_tokens += int(metadata.get('total-tokens', 0))
+                                
+                                # Count success/failure
+                                if metadata.get('processing-status') == 'success':
+                                    successful_files += 1
+                                elif metadata.get('processing-status') == 'error':
+                                    failed_files += 1
+                                    
+                            except Exception as e:
+                                logger.warning(f"Could not read metadata for {obj['Key']}: {e}")
+                
+                logger.info(f"Token usage aggregated - Input: {total_input_tokens}, Output: {total_output_tokens}, Total: {total_tokens}")
+                logger.info(f"File processing results - Successful: {successful_files}, Failed: {failed_files}")
+                
+            except Exception as e:
+                logger.error(f"Error aggregating token usage: {e}")
+        
         # Update status data
         status_data = {
             "status": status,
@@ -45,6 +92,19 @@ def lambda_handler(event, context):
             "timestamp": datetime.now().isoformat(),
             "directory_path": directory_path
         }
+        
+        # Add detailed results if we have them
+        if status == "completed" and (successful_files > 0 or failed_files > 0):
+            status_data["successful_files"] = successful_files
+            status_data["failed_files"] = failed_files
+            
+            # Add token usage if we have any
+            if total_tokens > 0:
+                status_data["token_usage"] = {
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
+                    "total_tokens": total_tokens
+                }
         
         if execution_arn:
             status_data["execution_arn"] = execution_arn
