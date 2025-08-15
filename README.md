@@ -112,6 +112,7 @@ sam deploy --config-file samconfig.your-env.toml
 After deployment, note the created bucket names:
 - Input: `{StackPrefix}-ai-file-processor-input`
 - Output: `{StackPrefix}-ai-file-processor-output`
+```
 
 ## Usage
 
