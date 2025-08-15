@@ -79,6 +79,9 @@ parameter_overrides = [
 ```
 
 **Deployment Parameters** (set in samconfig.toml):
+- **`stack_name`** (required) - Name of CloudFormation stack in AWS
+
+**Parameter Overrrides** (set in samconfig.toml)
 - **`ModelId`** (required) - (see "Available Models" below)
 - **`StackPrefix`** (required): prefix for resource names in AWS
 - **`MaxConcurrency`** (optional, default: 10): Number of files to process simultaneously (1-1000)
