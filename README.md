@@ -74,6 +74,12 @@ stack_name = "your-stack-name"
 parameter_overrides = [
     "StackPrefix=\"your-prefix\" ModelId=arn:aws:bedrock:us-east-1:1234567890:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0 MaxConcurrency=50"
 ]
+tags = [
+    "Environment=production",
+    "Team=ai-team", 
+    "Project=document-processing",
+    "CostCenter=engineering"
+]
 ```
 
 **Deployment Parameters** (set in samconfig.toml):
@@ -82,6 +88,10 @@ parameter_overrides = [
   - **`ModelId`** (required) - (see "Available Models" below)
   - **`StackPrefix`** (required): prefix for resource names in AWS
   - **`MaxConcurrency`** (optional, default: 10): Number of files to process simultaneously (1-1000)
+- **`tags`** (optional) - Array of key=value pairs for AWS resource tagging:
+  - Applied to all resources (Lambda functions, S3 buckets, Step Functions, IAM roles)
+  - Useful for cost allocation, governance, and resource management
+  - Common tags: Environment, Team, Project, CostCenter, Owner
 
 **Available Models** (check Bedrock console for your region):
 - You may need to request AWS enable models
@@ -98,7 +108,6 @@ sam build
 
 # Deploy with your configuration
 sam deploy --config-file samconfig.your-env.toml
-```
 
 ### 4. Note the S3 Bucket Names
 
