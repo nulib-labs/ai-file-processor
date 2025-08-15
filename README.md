@@ -78,7 +78,7 @@ parameter_overrides = "StackPrefix=your-prefix ModelId=arn:aws:bedrock:us-east-1
 tags = "Environment=production Team=ai-team Project=document-processing CostCenter=engineering"
 ```
 
-**Deployment Parameters** (set in samconfig.toml):
+**Deployment Parameters** (set in `samconfig.your-env.toml`):
 
 **Required:**
 - **`stack_name`** - (required) Name of CloudFormation stack in AWS
