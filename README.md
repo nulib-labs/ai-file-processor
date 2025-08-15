@@ -81,9 +81,9 @@ tags = "Environment=production Team=ai-team Project=document-processing CostCent
 **Deployment Parameters** (set in `samconfig.your-env.toml`):
 
 **Required:**
-- **`stack_name`** - (required) Name of CloudFormation stack in AWS
-- **`StackPrefix`** - (required) Prefix for resource names in AWS (e.g., "my-company-dev")
+- **`stack_name`** - (required) Name of CloudFormation stack in AWS (e.g., "my-ai-file-processor")
 - **`ParameterOverrides`** (required)
+  - **`StackPrefix`** - (required) Prefix for resource names in AWS (e.g., "my-dev")
   - **`ModelId`** - (required)Bedrock model ARN (see "Available Models" below)
   - **`MaxConcurrency`** (optional)(default: 10) - Number of files to process simultaneously (1-1000)
 - **`tags`** - (optional) Key-value pairs for AWS resource tagging:
