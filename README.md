@@ -260,7 +260,9 @@ Each processed file generates a `.json` result file:
 **Input**: `batch-001/image1.jpg`
 **Output**: `batch-001/image1.jpg.json`
 
-Example result content:
+### Successful Processing
+
+Example successful result:
 ```json
 {
   "title": "Product Catalog Page",
@@ -273,6 +275,23 @@ Example result content:
   "analysis_timestamp": "2025-01-15T10:35:22Z"
 }
 ```
+
+### Failed Processing
+
+When individual files fail (e.g., file too large, unsupported format), an error file is created:
+
+```json
+{
+"status": "error",
+"error_code": "ValidationException",
+"error_message": "messages.0.content.1.image.source.base64: image exceeds 5 MB maximum: 7021200 bytes > 5242880 bytes",
+"file_key": "project1/too-big.png",
+"record_id": "project1-too-big-png",
+"timestamp": "2025-08-15T16:27:00.248755"
+}
+```
+
+**Important**: Individual file failures don't stop the entire batch. Other files continue processing normally, and the overall status will show "completed" even if some files failed.
 
 ## Validation Rules
 
@@ -320,6 +339,38 @@ The system enforces several validation rules:
 2. **Files not processing**: Verify directory structure and file types
 3. **Status stuck on "in_progress"**: Check Step Functions execution in AWS Console
 4. **"Job already exists"**: Delete output directory and retry
+5. **Some files failed**: Individual files can fail while batch succeeds - check error files
+
+### Identifying Failed Files
+
+A user defined metatdata key of `x-amz-meta-processing-status` with a value of `success` or `error` is created on each S3 output file.
+
+```bash
+# Find all error files in a batch
+export BUCKET="your-prefix-ai-file-processor-output"
+export PREFIX="batch001"
+
+aws s3api list-objects-v2 \
+  --bucket "$BUCKET" \
+  --prefix "$PREFIX" \
+  --output json | \
+jq -r '.Contents[]? | select(.Key | endswith(".json")) | .Key' | \
+while read -r key; do
+  processing_status=$(aws s3api head-object \
+    --bucket "$BUCKET" \
+    --key "$key" \
+    --query 'Metadata."processing-status"' \
+    --output text 2>/dev/null)
+
+  if [ "$processing_status" = "error" ]; then
+    echo "$key"
+  fi
+done
+
+# Download and examine error details
+aws s3 cp s3://your-prefix-ai-file-processor-output/batch-001/failed-image.jpg.json ./
+cat failed-image.jpg.json
+```
 
 ### Debugging
 

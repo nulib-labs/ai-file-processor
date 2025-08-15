@@ -103,88 +103,23 @@ def lambda_handler(event, context):
         error_code = e.response['Error']['Code']
         error_message = e.response['Error']['Message']
         
-        logger.error(f"AWS Error processing {record.get('recordId', 'unknown')}: {error_code} - {error_message}")
-        
-        # Write error details to output file
         file_key = record.get('file_key', 'unknown')
-        output_key = f"{file_key}.json"
         record_id = record.get('recordId', 'unknown')
         
-        error_result = {
-            "status": "error",
-            "error_code": error_code,
-            "error_message": error_message,
-            "file_key": file_key,
-            "record_id": record_id,
-            "timestamp": datetime.now().isoformat()
-        }
+        logger.error(f"AWS Error processing {record_id}: {error_code} - {error_message}")
         
-        try:
-            s3_client.put_object(
-                Bucket=output_bucket,
-                Key=output_key,
-                Body=json.dumps(error_result, indent=2),
-                ContentType='application/json',
-                Metadata={
-                    'record-id': record_id,
-                    'processing-status': 'error',
-                    'error-code': error_code
-                }
-            )
-        except Exception as s3_error:
-            logger.error(f"Failed to write error file {output_key}: {s3_error}")
-
-        return {
-            "statusCode": 500,
-            "recordId": record_id,
-            "file_key": file_key,
-            "output_key": output_key,
-            "status": "error",
-            "error_code": error_code,
-            "error_message": error_message
-        }
+        output_key = write_error_file(s3_client, output_bucket, file_key, record_id, error_code, error_message)
+        return create_error_response(record_id, file_key, output_key, error_code, error_message)
         
     except Exception as e:
-        logger.error(f"Unexpected error processing {record.get('recordId', 'unknown')}: {e}")
-        
-        # Write generic error details to output file
         file_key = record.get('file_key', 'unknown')
-        output_key = f"{file_key}.json"
         record_id = record.get('recordId', 'unknown')
+        error_message = str(e)
         
-        error_result = {
-            "status": "error",
-            "error_code": "UnexpectedError",
-            "error_message": str(e),
-            "file_key": file_key,
-            "record_id": record_id,
-            "timestamp": datetime.now().isoformat()
-        }
+        logger.error(f"Unexpected error processing {record_id}: {error_message}")
         
-        try:
-            s3_client.put_object(
-                Bucket=output_bucket,
-                Key=output_key,
-                Body=json.dumps(error_result, indent=2),
-                ContentType='application/json',
-                Metadata={
-                    'record-id': record_id,
-                    'processing-status': 'error',
-                    'error-code': 'UnexpectedError'
-                }
-            )
-        except Exception as s3_error:
-            logger.error(f"Failed to write error file {output_key}: {s3_error}")
-
-        return {
-            "statusCode": 500,
-            "recordId": record_id,
-            "file_key": file_key,
-            "output_key": output_key,
-            "status": "error",
-            "error_code": "UnexpectedError",
-            "error_message": str(e)
-        }
+        output_key = write_error_file(s3_client, output_bucket, file_key, record_id, "UnexpectedError", error_message)
+        return create_error_response(record_id, file_key, output_key, "UnexpectedError", error_message)
 
 def get_media_type(filename):
     """
@@ -200,4 +135,47 @@ def get_media_type(filename):
         'tif': 'image/tiff'
     }
     return media_types.get(extension, 'image/jpeg')
+
+def write_error_file(s3_client, output_bucket, file_key, record_id, error_code, error_message):
+    """Write error details to S3 output file"""
+    output_key = f"{file_key}.json"
+    
+    error_result = {
+        "status": "error",
+        "error_code": error_code,
+        "error_message": error_message,
+        "file_key": file_key,
+        "record_id": record_id,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    try:
+        s3_client.put_object(
+            Bucket=output_bucket,
+            Key=output_key,
+            Body=json.dumps(error_result, indent=2),
+            ContentType='application/json',
+            Metadata={
+                'record-id': record_id,
+                'processing-status': 'error',
+                'error-code': error_code
+            }
+        )
+        logger.info(f"Wrote error file: {output_key}")
+    except Exception as s3_error:
+        logger.error(f"Failed to write error file {output_key}: {s3_error}")
+    
+    return output_key
+
+def create_error_response(record_id, file_key, output_key, error_code, error_message, status_code=500):
+    """Create standardized error response"""
+    return {
+        "statusCode": status_code,
+        "recordId": record_id,
+        "file_key": file_key,
+        "output_key": output_key,
+        "status": "error",
+        "error_code": error_code,
+        "error_message": error_message
+    }
 
