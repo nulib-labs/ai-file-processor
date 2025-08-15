@@ -72,19 +72,16 @@ Edit `samconfig.your-env.toml`:
 [default.deploy.parameters]
 stack_name = "your-stack-name"
 parameter_overrides = [
-    "StackPrefix=your-prefix",
-    "ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "MaxConcurrency=15"
+    "StackPrefix=your-prefix" "ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0" "MaxConcurrency=15"
 ]
 ```
 
 **Deployment Parameters** (set in samconfig.toml):
 - **`stack_name`** (required) - Name of CloudFormation stack in AWS
-
-**Parameter Overrrides** (set in samconfig.toml)
-- **`ModelId`** (required) - (see "Available Models" below)
-- **`StackPrefix`** (required): prefix for resource names in AWS
-- **`MaxConcurrency`** (optional, default: 10): Number of files to process simultaneously (1-1000)
+- **`parameter_overrides`** (required) - String containing:
+  - **`ModelId`** (required) - (see "Available Models" below)
+  - **`StackPrefix`** (required): prefix for resource names in AWS
+  - **`MaxConcurrency`** (optional, default: 10): Number of files to process simultaneously (1-1000)
 
 **Available Models** (check Bedrock console for your region):
 - You may need to request AWS enable models
