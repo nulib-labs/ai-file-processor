@@ -137,11 +137,27 @@ your-bucket/
 
 Create a `_prompt.json` file:
 
+#### Basic Configuration
 ```json
 {
   "prompt": "Analyze this image and extract key information in JSON format with fields: title, description, objects_detected, and confidence_score."
 }
 ```
+
+#### Advanced Configuration (All Optional Parameters)
+```json
+{
+  "prompt": "Your analysis prompt here",
+  "max_tokens": 4096,
+  "temperature": 0.2,
+  "max_concurrency": 5
+}
+```
+
+**Configuration Parameters:**
+- **`prompt`** (required): The instruction for Claude to analyze each file
+- **`max_tokens`** (optional, default: 8192): Maximum tokens Claude can generate per response (check limits for your specific model)
+- **`temperature`** (optional, default: 0.1): Controls randomness (0.0 = deterministic, 1.0 = very random)  
 
 **Example Prompts:**
 
@@ -169,15 +185,16 @@ Create a `_prompt.json` file:
   "prompt": "This is part of a handwritten correspondence. Please identify whether it is first page, last page, middle page, or single page. First page usually has a salutation and possibly a date, last pages would have a closing, middle pages would have neither, and single page letters would have both a salutation and a closing. Please output in normalized json format. Please include the trasciption of the full document and full english translation if not in english. Also include a short list of topical keywords\n\n```json\njson_data = {\n  \"page_type\": \"first_page\",\n  \"confidence\": \"[Z%]\",\n  \"reasoning\": \"This page contains a date and a line starting with Dear...\", \"transcription\": \"[transcribed text]\", \"english_translation\": \"[translation]\", \"topic_keywords\": [array of keywords] \n}```\n\nPlease include your confidence level and a brief explanation of why you identified the page type. Do not include any text outside of the json itself."
 }
 ```
-
-With custom `temperature` and `max_tokens` (optional - defaults are 0.1 and 8192)
+**Prompt with full custom configuration options**
 ```json
+Full configuration:
   {
     "prompt": "Analyze the uploaded document",
     "max_tokens": 4096,
     "temperature": 0.2
   }
 ```
+
 
 ### Processing Workflow
 
@@ -292,7 +309,7 @@ The system enforces several validation rules:
 - **File Size**: 
   - Limited by Lambda memory (1GB) and timeout (5 minutes per file)
   - Claude/Bedrock has 5MB limit on images via API and base64 encoding (done in the worker lambda) adds about 33% to the file size, so keep images as small as possible
-- **Concurrency**: Max 10 files processed simultaneously (configurable)
+- **Concurrency**: Default 10 files processed simultaneously (configurable via `max_concurrency` parameter)
 - **File Types**: Currently images only (PDF/text support planned)
 - **Region**: Must be deployed in region with Bedrock model access
 
