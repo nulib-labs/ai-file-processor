@@ -187,7 +187,6 @@ Create a `_prompt.json` file:
 ```
 **Prompt with full custom configuration options**
 ```json
-Full configuration:
   {
     "prompt": "Analyze the uploaded document",
     "max_tokens": 4096,
