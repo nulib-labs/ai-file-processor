@@ -90,7 +90,8 @@ def lambda_handler(event, context):
             "total_files": current_status.get("total_files", 0),
             "completed_files": current_status.get("total_files", 0) if status == "completed" else current_status.get("completed_files", 0),
             "timestamp": datetime.now().isoformat(),
-            "directory_path": directory_path
+            "directory_path": directory_path,
+            "model_id": current_status.get("model_id")
         }
         
         # Add detailed results if we have them

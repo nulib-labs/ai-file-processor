@@ -14,6 +14,7 @@ bedrock_client = boto3.client("bedrock", region_name="us-east-1")
 stepfunctions_client = boto3.client("stepfunctions", region_name="us-east-1")
 OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET")
 STATE_MACHINE_ARN = os.environ.get("STATE_MACHINE_ARN")
+MODEL_ID = os.environ.get("MODEL_ID")
 SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg"]
 
 
@@ -220,7 +221,8 @@ def create_status_file(directory_path, status, message, total_files, completed_f
         "total_files": total_files,
         "completed_files": completed_files,
         "timestamp": datetime.now().isoformat(),
-        "directory_path": directory_path
+        "directory_path": directory_path,
+        "model_id": MODEL_ID
     }
     
     if execution_arn:
