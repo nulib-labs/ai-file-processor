@@ -219,7 +219,7 @@ Create a `_prompt.json` file:
 
 ### Example Usage
 
-Bash commands shown, but this can also be done via the AWS console.
+Bash commands shown, but this can alternatively be done via the AWS console.
 
 ```bash
 # Upload files to input bucket
@@ -401,6 +401,8 @@ The system enforces several validation rules:
 
 ### Identifying Failed Files
 
+Bash commands shown, but this can alternatively be done via the AWS console.
+
 User-defined metadata keys are created on each S3 output file:
 - `x-amz-meta-processing-status`: `success` or `error`
 - `x-amz-meta-input-tokens`: Number of input tokens consumed
@@ -436,6 +438,8 @@ cat failed-image.jpg.json
 ```
 
 ### Debugging
+
+Bash commands shown, but this can alternatively be done via the AWS console.
 
 ```bash
 # Check CloudWatch logs
