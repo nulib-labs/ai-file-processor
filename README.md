@@ -72,7 +72,7 @@ Edit `samconfig.your-env.toml`:
 [default.deploy.parameters]
 stack_name = "your-stack-name"
 parameter_overrides = [
-    "StackPrefix=your-prefix" "ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0" "MaxConcurrency=15"
+    "StackPrefix=\"your-prefix\" ModelId=arn:aws:bedrock:us-east-1:1234567890:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0 MaxConcurrency=50"
 ]
 ```
 
