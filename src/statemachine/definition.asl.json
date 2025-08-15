@@ -65,7 +65,7 @@
         }
       },
       "Parameters": {"outputBucket.$": "$.output_bucket", "directoryPath.$": "$.directory_path", "item.$": "$$.Map.Item.Value"},
-      "MaxConcurrency": 10,
+      "MaxConcurrency": ${MaxConcurrency},
       "Label": "ProcessFiles",
       "ResultPath": "$.mapResults",
       "Next": "UpdateStatusSuccess",

@@ -17,7 +17,7 @@ stack_name = "my-stack-ai-file-processor"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 confirm_changeset = true
 resolve_s3 = true
-parameter_overrides="StackPrefix=\"my-stack\" ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+parameter_overrides="StackPrefix=\"my-stack\" ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0 MaxConcurrency=50"
 
 [default.package.parameters]
 resolve_s3 = true

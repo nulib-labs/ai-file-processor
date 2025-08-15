@@ -9,6 +9,12 @@ Parameters:
   ModelId:
     Type: String
     Description: 'The Bedrock model ID to use for processing files'
+  MaxConcurrency:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 1000
+    Description: 'Maximum number of files to process concurrently'
 
 Globals:
   Function:
@@ -91,6 +97,7 @@ Resources:
       DefinitionSubstitutions:
         WorkerFunctionArn: !GetAtt WorkerFunction.Arn
         StatusUpdateFunctionArn: !GetAtt StatusUpdateFunction.Arn
+        MaxConcurrency: !Ref MaxConcurrency
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref WorkerFunction

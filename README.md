@@ -73,9 +73,15 @@ Edit `samconfig.your-env.toml`:
 stack_name = "your-stack-name"
 parameter_overrides = [
     "StackPrefix=your-prefix",
-    "ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    "ModelId=arn:aws:bedrock:us-east-1:012345678910:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "MaxConcurrency=15"
 ]
 ```
+
+**Deployment Parameters** (set in samconfig.toml):
+- **`ModelId`** (required) - (see "Available Models" below)
+- **`StackPrefix`** (required): prefix for resource names in AWS
+- **`MaxConcurrency`** (optional, default: 10): Number of files to process simultaneously (1-1000)
 
 **Available Models** (check Bedrock console for your region):
 - You may need to request AWS enable models
@@ -149,15 +155,14 @@ Create a `_prompt.json` file:
 {
   "prompt": "Your analysis prompt here",
   "max_tokens": 4096,
-  "temperature": 0.2,
-  "max_concurrency": 5
+  "temperature": 0.2
 }
 ```
 
 **Configuration Parameters:**
 - **`prompt`** (required): The instruction for Claude to analyze each file
 - **`max_tokens`** (optional, default: 8192): Maximum tokens Claude can generate per response (check limits for your specific model)
-- **`temperature`** (optional, default: 0.1): Controls randomness (0.0 = deterministic, 1.0 = very random)  
+- **`temperature`** (optional, default: 0.1): Controls randomness (0.0 = deterministic, 1.0 = very random)
 
 **Example Prompts:**
 
@@ -327,7 +332,7 @@ The system enforces several validation rules:
 - **File Size**: 
   - Limited by Lambda memory (1GB) and timeout (5 minutes per file)
   - Claude/Bedrock has 5MB limit on images via API and base64 encoding (done in the worker lambda) adds about 33% to the file size, so keep images as small as possible
-- **Concurrency**: Default 10 files processed simultaneously (configurable via `max_concurrency` parameter)
+- **Concurrency**: Default 10 files processed simultaneously (configurable via `MaxConcurrency` deployment parameter)
 - **File Types**: Currently images only (PDF/text support planned)
 - **Region**: Must be deployed in region with Bedrock model access
 
@@ -397,9 +402,11 @@ python -m pytest tests/ -v
 sam build
 
 # Test trigger function with mock S3 event
+# Note: Successful testing requires deployed AWS resources
 sam local invoke TriggerFunction -e tests/fixtures/s3_event.json
 
 # Test worker function with mock input
+# Note: Successful testing requires deployed AWS resources
 sam local invoke WorkerFunction -e tests/fixtures/worker_event.json
 
 # Note: Full integration testing requires deployed AWS resources
