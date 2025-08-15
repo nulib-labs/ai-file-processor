@@ -14,10 +14,10 @@ lint = true
 
 [default.deploy.parameters]
 stack_name = ""
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 confirm_changeset = true
 resolve_s3 = true
-parameter_overrides=""
+parameter_overrides = "StackPrefix= ModelId= MaxConcurrency=10"
 
 [default.package.parameters]
 resolve_s3 = true

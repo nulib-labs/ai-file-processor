@@ -71,24 +71,22 @@ Edit `samconfig.your-env.toml`:
 ```toml
 [default.deploy.parameters]
 stack_name = "your-stack-name"
-parameter_overrides = [
-    "StackPrefix=\"your-prefix\" ModelId=arn:aws:bedrock:us-east-1:1234567890:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0 MaxConcurrency=50"
-]
-tags = [
-    "Environment=production",
-    "Team=ai-team", 
-    "Project=document-processing",
-    "CostCenter=engineering"
-]
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = true
+resolve_s3 = true
+parameter_overrides = "StackPrefix=your-prefix ModelId=arn:aws:bedrock:us-east-1:1234567890:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0 MaxConcurrency=15"
+tags = "Environment=production Team=ai-team Project=document-processing CostCenter=engineering"
 ```
 
 **Deployment Parameters** (set in samconfig.toml):
-- **`stack_name`** (required) - Name of CloudFormation stack in AWS
-- **`parameter_overrides`** (required) - String containing:
-  - **`ModelId`** (required) - (see "Available Models" below)
-  - **`StackPrefix`** (required): prefix for resource names in AWS
-  - **`MaxConcurrency`** (optional, default: 10): Number of files to process simultaneously (1-1000)
-- **`tags`** (optional) - Array of key=value pairs for AWS resource tagging:
+
+**Required:**
+- **`stack_name`** - (required) Name of CloudFormation stack in AWS
+- **`StackPrefix`** - (required) Prefix for resource names in AWS (e.g., "my-company-dev")
+- **`ParameterOverrides`** (required)
+  - **`ModelId`** - (required)Bedrock model ARN (see "Available Models" below)
+  - **`MaxConcurrency`** (optional)(default: 10) - Number of files to process simultaneously (1-1000)
+- **`tags`** - (optional) Key-value pairs for AWS resource tagging:
   - Applied to all resources (Lambda functions, S3 buckets, Step Functions, IAM roles)
   - Useful for cost allocation, governance, and resource management
   - Common tags: Environment, Team, Project, CostCenter, Owner
@@ -121,8 +119,8 @@ After deployment, note the created bucket names:
 
 Files must be organized in exactly **one level deep** directories:
 
+**✅ VALID:**
 ```
-✅ VALID:
 your-bucket/
 ├── project1/
 │   ├── image1.jpg
@@ -132,8 +130,10 @@ your-bucket/
     ├── file1.jpg
     ├── file2.jpeg
     └── _prompt.json
+```
 
-❌ INVALID:
+**❌ INVALID:**
+```
 your-bucket/
 ├── _prompt.json              # Too shallow (root level)
 └── project/
@@ -145,7 +145,7 @@ your-bucket/
 ### Supported File Types
 
 - **Images**: `.png`, `.jpg`, `.jpeg`
-- Future support planned for PDFs and text files
+- Future support planned for other file types
 - **Image Size**: Image files must be under ~3MB each
 
 ### Prompt Configuration
@@ -376,7 +376,7 @@ The system enforces several validation rules:
   - Limited by Lambda memory (1GB) and timeout (5 minutes per file)
   - Claude/Bedrock has 5MB limit on images via API and base64 encoding (done in the worker lambda) adds about 33% to the file size, so keep images as small as possible
 - **Concurrency**: Default 10 files processed simultaneously (configurable via `MaxConcurrency` deployment parameter)
-- **File Types**: Currently images only (PDF/text support planned)
+- **File Types**: Currently jpg and png images only 
 - **Region**: Must be deployed in region with Bedrock model access
 
 ## Troubleshooting
