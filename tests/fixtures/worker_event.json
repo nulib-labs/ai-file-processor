@@ -4,6 +4,8 @@
     "file_key": "test-folder/image1.jpg",
     "bucket": "test-ai-file-processor-input",
     "prompt": "Analyze this image and extract key information in JSON format with fields: title, description, objects_detected, and confidence_score.",
+    "max_tokens": 4096,
+    "temperature": 0.2,
     "file_format": "jpg",
     "content_type": "image"
   },

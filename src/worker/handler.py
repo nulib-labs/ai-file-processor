@@ -25,6 +25,8 @@ def lambda_handler(event, context):
         bucket = record['bucket']
         record_id = record['recordId']
         prompt = record['prompt']
+        max_tokens = record.get('max_tokens', 8192)
+        temperature = record.get('temperature', 0.1)
 
         logger.info(f"Processing s3://{bucket}/{file_key}")
 
@@ -34,8 +36,8 @@ def lambda_handler(event, context):
 
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 8192,
-            "temperature": 0.1,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
             "messages": [
                 {
                     "role": "user",

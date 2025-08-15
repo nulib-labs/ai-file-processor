@@ -169,6 +169,8 @@ def create_processing_record(file_info, prompt_config, bucket):
         "file_key": file_info["key"],
         "bucket": bucket,
         "prompt": prompt_config["prompt"],
+        "max_tokens": prompt_config.get("max_tokens", 8192),
+        "temperature": prompt_config.get("temperature", 0.1),
         "file_format": file_info["format"],
         "content_type": file_info["content_type"],
     }

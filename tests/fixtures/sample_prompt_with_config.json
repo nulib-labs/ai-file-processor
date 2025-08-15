@@ -1,0 +1,5 @@
+{
+  "prompt": "Analyze the uploaded document and provide a detailed summary with structured output.",
+  "max_tokens": 4096,
+  "temperature": 0.2
+}

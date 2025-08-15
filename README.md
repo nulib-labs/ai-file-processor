@@ -8,7 +8,7 @@ The AI File Processor is a serverless system that processes files uploaded to S3
 
 - **Dataset Generation**: Convert unstructured documents/images into structured JSON data
 - **Content Analysis**: Extract key information from business documents, forms, or receipts
-- **Object Recognition**: Identify and catalog objects in images
+- **Object Recognition**: Identify and catalog objects in images (YMMV)
 - **Document Transcription**: Convert handwritten or printed text to digital format
 - **Translation**: Translate documents between languages
 - **Quick Analysis**: Rapid processing of document batches for research or analysis
@@ -135,7 +135,7 @@ your-bucket/
 
 ### Prompt Configuration
 
-Create a `_prompt.json` file in each directory:
+Create a `_prompt.json` file:
 
 ```json
 {
@@ -170,10 +170,19 @@ Create a `_prompt.json` file in each directory:
 }
 ```
 
+With custom `temperature` and `max_tokens` (optional - defaults are 0.1 and 8192)
+```json
+  {
+    "prompt": "Analyze the uploaded document",
+    "max_tokens": 4096,
+    "temperature": 0.2
+  }
+```
+
 ### Processing Workflow
 
 1. **Upload Files**: Upload your files to the input bucket in a folder
-2. **Add Prompt**: Upload `_prompt.json` to trigger processing
+2. **Add Prompt**: Upload `_prompt.json` to trigger processing (**Note:** Upload `_prompt.json` __after__ the image files are uploaded as the `_promot.json` file triggers the execution using whatever files are currently in the S3 directory.)
 3. **Monitor Status**: Check the status file in the output bucket
 4. **Retrieve Results**: Download processed results from output bucket
 
@@ -280,7 +289,9 @@ The system enforces several validation rules:
 
 ## Limitations
 
-- **File Size**: Limited by Lambda memory (1GB) and timeout (5 minutes per file)
+- **File Size**: 
+  - Limited by Lambda memory (1GB) and timeout (5 minutes per file)
+  - Claude/Bedrock has 5MB limit on images via API and base64 encoding (done in the worker lambda) adds about 33% to the file size, so keep images as small as possible
 - **Concurrency**: Max 10 files processed simultaneously (configurable)
 - **File Types**: Currently images only (PDF/text support planned)
 - **Region**: Must be deployed in region with Bedrock model access
