@@ -101,11 +101,19 @@ def lambda_handler(event, context):
             
             # Add token usage if we have any
             if total_tokens > 0:
-                status_data["token_usage"] = {
+                token_usage = {
                     "input_tokens": total_input_tokens,
                     "output_tokens": total_output_tokens,
                     "total_tokens": total_tokens
                 }
+                
+                # Add average token metrics per successful file
+                if successful_files > 0:
+                    token_usage["avg_input_tokens_per_file"] = round(total_input_tokens / successful_files, 2)
+                    token_usage["avg_output_tokens_per_file"] = round(total_output_tokens / successful_files, 2)
+                    token_usage["avg_total_tokens_per_file"] = round(total_tokens / successful_files, 2)
+                
+                status_data["token_usage"] = token_usage
         
         if execution_arn:
             status_data["execution_arn"] = execution_arn
