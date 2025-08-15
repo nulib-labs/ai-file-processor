@@ -209,6 +209,8 @@ Create a `_prompt.json` file:
 
 ### Example Usage
 
+Bash commands shown, but this can also be done via the AWS console.
+
 ```bash
 # Upload files to input bucket
 aws s3 cp image1.jpg s3://your-prefix-ai-file-processor-input/batch-001/
@@ -351,7 +353,8 @@ The system enforces several validation rules:
 A user defined metatdata key of `x-amz-meta-processing-status` with a value of `success` or `error` is created on each S3 output file.
 
 ```bash
-# Find all error files in a batch
+# Find all error files in a batch - using jq 
+# (you might need to install jq if you don't have it)
 export BUCKET="your-prefix-ai-file-processor-output"
 export PREFIX="batch001"
 
