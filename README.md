@@ -4,7 +4,7 @@ A serverless AWS application for batch processing files using Claude AI models. 
 
 ## Overview
 
-The AI File Processor is a serverless system that processes files uploaded to S3 using AWS Bedrock's Claude models. It's designed for use cases like:
+The AI File Processor is a serverless system that processes files uploaded to S3 using AWS Bedrock's Claude models and a prompt that you provide. It's designed for use cases like:
 
 - **Dataset Generation**: Convert unstructured documents/images into structured JSON data
 - **Content Analysis**: Extract key information from business documents, forms, or receipts
