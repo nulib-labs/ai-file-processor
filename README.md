@@ -93,11 +93,17 @@ tags = "Environment=production Team=ai-team Project=document-processing CostCent
 
 **Available Models** (check Bedrock console for your region):
 - You may need to request AWS enable models
-- Use the "Inference profile ARN" for the appropriate Claude model located in AWS Console -> Amazon Bedrock -> Infer -> Cross-region inference -> Inference profiles
+- Use the "Inference profile ARN" for the appropriate Claude model located in AWS Console -> Amazon Bedrock -> Infer -> Cross-region inference -> Inference profile
 
 ### 3. Deploy
 
 ```bash
+# install dependencies
+pip install -r requirements-dev.txt
+
+# set your AWS Region. Example
+export AWS_REGION=us-east-1
+
 # Validate template
 sam validate
 
