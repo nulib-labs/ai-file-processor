@@ -36,7 +36,8 @@ The AI File Processor is a serverless system that processes files uploaded to S3
 
 - AWS CLI configured with appropriate permissions
 - AWS SAM CLI installed
-- Python 3.11+
+- Python 3.12+ (managed via uv)
+- [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
 - Access to AWS Bedrock Claude models in your region
 
 ### Required AWS Permissions
@@ -98,8 +99,8 @@ tags = "Environment=production Team=ai-team Project=document-processing CostCent
 ### 3. Deploy
 
 ```bash
-# install dependencies
-pip install -r requirements-dev.txt
+# install dependencies using uv
+uv sync
 
 # set your AWS Region. Example
 export AWS_REGION=us-east-1
