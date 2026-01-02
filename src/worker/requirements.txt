@@ -1,0 +1,2 @@
+# Runtime dependencies
+Pillow>=10.0.0  # Required for TIFF to PNG conversion

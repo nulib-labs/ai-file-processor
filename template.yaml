@@ -26,6 +26,18 @@ Globals:
         STACK_PREFIX: !Ref StackPrefix
 
 Resources:
+  PillowLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${StackPrefix}-pillow-layer'
+      Description: Pillow library for image processing
+      ContentUri: layers/pillow/
+      CompatibleRuntimes:
+        - python3.11
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.11
+
   TriggerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -116,6 +128,8 @@ Resources:
       Description: Processes individual files using Bedrock Converse API
       Timeout: 300  # 5 minutes per file
       MemorySize: 1024
+      Layers:
+        - !Ref PillowLayer
       Environment:
         Variables:
           MODEL_ID: !Ref ModelId
