@@ -1,0 +1,22 @@
+[project]
+name = "ai-file-processor"
+version = "0.1.0"
+description = "AI File Processor - Process files in S3 using Claude Bedrock"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "boto3>=1.42.19",
+    "moto>=5.1.19",
+    "pytest>=9.0.2",
+    "pytest-mock>=3.15.1",
+]

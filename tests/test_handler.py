@@ -144,8 +144,8 @@ class TestLambdaHandler:
             assert result['body'] == 'success'
             
             # Verify status file was created for duplicate job error
-            error_put_calls = [call for call in mock_put.call_args_list 
-                              if 'Job already exists' in str(call)]
+            error_put_calls = [call for call in mock_put.call_args_list
+                              if 'Job output already exists' in str(call)]
             assert len(error_put_calls) == 1
 
     def test_lambda_handler_invalid_directory_depth_root(self):

@@ -15,7 +15,7 @@ stepfunctions_client = boto3.client("stepfunctions", region_name="us-east-1")
 OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET")
 STATE_MACHINE_ARN = os.environ.get("STATE_MACHINE_ARN")
 MODEL_ID = os.environ.get("MODEL_ID")
-SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg"]
+SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".tiff", ".tif"]
 
 
 def lambda_handler(event, context):
@@ -159,7 +159,12 @@ def list_files_in_directory(bucket, directory_path):
 
 def get_file_format_and_content_type(file_key):
     _, ext = os.path.splitext(file_key)
-    return ext.lower()[1:], "image"
+    file_format = ext.lower()[1:]
+
+    # Determine content type - PDFs are documents, others are images
+    content_type = "document" if file_format == "pdf" else "image"
+
+    return file_format, content_type
 
 
 def create_processing_record(file_info, prompt_config, bucket):
